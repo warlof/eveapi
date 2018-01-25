@@ -23,6 +23,7 @@
 namespace Seat\Eveapi\Models\Character;
 
 use Illuminate\Database\Eloquent\Model;
+use Seat\Eveapi\Models\Corporation\CorporationInfo;
 
 /**
  * Class CharacterInfo
@@ -39,4 +40,14 @@ class CharacterInfo extends Model
      * @var string
      */
     protected $primaryKey = 'character_id';
+
+
+    public function corporation()
+    {
+        return $this->belongsTo(CorporationInfo::class, 'corporation_id', 'corporation_id')
+            ->withDefault([
+                'name'   => 'N/A',
+                'ticker' => 'N/A',
+            ]);
+    }
 }
