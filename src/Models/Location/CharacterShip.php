@@ -23,9 +23,11 @@
 namespace Seat\Eveapi\Models\Location;
 
 use Illuminate\Database\Eloquent\Model;
+use Seat\Eveapi\Models\Sde\InvType;
 
 /**
  * Class CharacterShip.
+ *
  * @package Seat\Eveapi\Models\Location
  */
 class CharacterShip extends Model
@@ -44,4 +46,13 @@ class CharacterShip extends Model
      * @var string
      */
     protected $primaryKey = 'character_id';
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function type()
+    {
+
+        return $this->belongsTo(InvType::class, 'ship_type_id', 'typeID');
+    }
 }

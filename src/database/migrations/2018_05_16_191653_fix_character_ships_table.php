@@ -20,27 +20,37 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-namespace Seat\Eveapi\Models\Mail;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-use Seat\Eveapi\Traits\HasCompositePrimaryKey;
-
-/**
- * Class MailLabel.
- * @package Seat\Eveapi\Models\Mail
- */
-class MailLabel extends Model
+class FixCharacterShipsTable extends Migration
 {
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
 
-    use HasCompositePrimaryKey;
+        Schema::table('character_ships', function (Blueprint $table) {
+
+            $table->bigInteger('ship_type_id')->after('ship_name');
+        });
+    }
 
     /**
-     * @var bool
+     * Reverse the migrations.
+     *
+     * @return void
      */
-    protected static $unguarded = true;
+    public function down()
+    {
 
-    /**
-     * @var null
-     */
-    protected $primaryKey = ['character_id', 'label_id'];
+        Schema::table('character_ships', function (Blueprint $table) {
+
+            $table->dropColumn('ship_type_id');
+        });
+    }
 }

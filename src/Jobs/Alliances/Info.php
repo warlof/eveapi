@@ -52,28 +52,47 @@ class Info extends EsiBase
     protected $tags = ['public', 'alliances', 'info'];
 
     /**
+     * @var \Seat\Eveapi\Models\Alliances\Alliance
+     */
+    private $alliance;
+
+    /**
      * Handle the job.
+     *
+     * @throws \Throwable
      */
     public function handle()
     {
 
-        Alliance::all()->each(function ($alliance) {
+        // Without an alliance set, we won't know which Alliance
+        // we need to get information for.
+        if (! $this->alliance) return;
 
-            $info = $this->retrieve([
-                'alliance_id' => $alliance->alliance_id,
-            ]);
+        $info = $this->retrieve([
+            'alliance_id' => $this->alliance->alliance_id,
+        ]);
 
-            if ($info->isCachedLoad()) return;
+        if ($info->isCachedLoad()) return;
 
-            Alliance::find($alliance->alliance_id)->fill([
-                'name'                    => $info->name,
-                'creator_id'              => $info->creator_id,
-                'creator_corporation_id'  => $info->creator_corporation_id,
-                'ticker'                  => $info->ticker,
-                'executor_corporation_id' => $info->executor_corporation_id ?? null,
-                'date_founded'            => carbon($info->date_founded),
-                'faction_id'              => $info->faction_id ?? null,
-            ])->save();
-        });
+        $this->alliance->fill([
+            'name'                    => $info->name,
+            'creator_id'              => $info->creator_id,
+            'creator_corporation_id'  => $info->creator_corporation_id,
+            'ticker'                  => $info->ticker,
+            'executor_corporation_id' => $info->executor_corporation_id ?? null,
+            'date_founded'            => carbon($info->date_founded),
+            'faction_id'              => $info->faction_id ?? null,
+        ])->save();
+    }
+
+    /**
+     * Set the alliance context for this job.
+     *
+     * @param Alliance $alliance
+     */
+    public function setAlliance(Alliance $alliance)
+    {
+
+        $this->alliance = $alliance;
     }
 }
