@@ -20,14 +20,37 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-return [
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-    'version'       => '3.0.0-beta20',
+class CreateEsiStatusesTable extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
 
-    // API Joblog logging
-    'enable_joblog' => false,
+        Schema::create('esi_statuses', function (Blueprint $table) {
 
-    'eseye_logfile'  => storage_path('logs'),
-    'eseye_cache'    => storage_path('eseye'),
-    'eseye_loglevel' => 'info', // valid entries are RFC 5424 levels ('debug', 'info', 'warn', 'error')
-];
+            $table->float('request_time');
+            $table->string('status');
+
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+
+        Schema::dropIfExists('esi_statuses');
+    }
+}

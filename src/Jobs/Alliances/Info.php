@@ -64,9 +64,13 @@ class Info extends EsiBase
     public function handle()
     {
 
+        if (! $this->preflighted()) return;
+
         // Without an alliance set, we won't know which Alliance
         // we need to get information for.
         if (! $this->alliance) return;
+
+        array_push($this->tags, 'alliance_id:' . $this->alliance->alliance_id);
 
         $info = $this->retrieve([
             'alliance_id' => $this->alliance->alliance_id,

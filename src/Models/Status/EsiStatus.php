@@ -20,14 +20,29 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-return [
+namespace Seat\Eveapi\Models\Status;
 
-    'version'       => '3.0.0-beta20',
+use Illuminate\Database\Eloquent\Model;
 
-    // API Joblog logging
-    'enable_joblog' => false,
+/**
+ * Class EsiStatus.
+ * @package Seat\Eveapi\Models\Market
+ */
+class EsiStatus extends Model
+{
 
-    'eseye_logfile'  => storage_path('logs'),
-    'eseye_cache'    => storage_path('eseye'),
-    'eseye_loglevel' => 'info', // valid entries are RFC 5424 levels ('debug', 'info', 'warn', 'error')
-];
+    /**
+     * @var bool
+     */
+    protected static $unguarded = true;
+
+    /**
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * @var null
+     */
+    protected $primaryKey = null;
+}

@@ -28,13 +28,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Seat\Eseye\Containers\EsiAuthentication;
 use Seat\Eseye\Containers\EsiResponse;
 use Seat\Eseye\Exceptions\RequestFailedException;
 use Seat\Eveapi\Models\Character\CharacterInfo;
 use Seat\Eveapi\Models\Character\CharacterRole;
 use Seat\Eveapi\Models\RefreshToken;
+use Seat\Eveapi\Traits\PerformsPreFlightChecking;
+use Seat\Eveapi\Traits\RateLimitsEsiCalls;
 use Seat\Services\Helpers\AnalyticsContainer;
 use Seat\Services\Jobs\Analytics;
 
@@ -44,7 +45,8 @@ use Seat\Services\Jobs\Analytics;
  */
 abstract class EsiBase implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels,
+        PerformsPreFlightChecking, RateLimitsEsiCalls;
 
     /**
      * The number of times the job may be attempted.
@@ -153,84 +155,20 @@ abstract class EsiBase implements ShouldQueue
     }
 
     /**
-     * Check that the current token has the required scope as well
-     * as corporation role if needed.
-     *
-     * @return bool
-     * @throws \Exception
-     */
-    public function authenticated(): bool
-    {
-
-        // Public calls need no checking.
-        if ($this->public_call || is_null($this->token) || $this->scope === 'public')
-            return true;
-
-        // Ignore NPC corporations by marking the job as unauthenticated.
-        // This is admittedly a little hacky, so a better way is needed
-        // more long term.
-        if (in_array('corporation', $this->tags()) && $this->isNPCCorporation())
-            return false;
-
-        // Check if the current scope also needs a corp role. If it does,
-        // ensure that the current character also has the required role.
-        if (count($this->roles) > 0) {
-
-            if ($this->isNPCCorporation()) return false;
-
-            // Check the role needed for this call. The minimum role would
-            // be configured in the roles attribute, but we will add the
-            // 'Director' role as directors automatically have all roles.
-            array_push($this->roles, 'Director');
-
-            // Perform the check.
-            if (in_array($this->scope, $this->token->scopes) && ! empty(
-                array_intersect($this->roles, $this->getCharacterRoles()))) {
-
-                return true;
-            }
-
-            // Considering a corporation role was required with the scope,
-            // fail the authentication check. If we don't fail here, simply
-            // granting the SSO scope would pass the next truth test.
-            return false;
-        }
-
-        // If a corporation role is *not* required, check that we have the required
-        // scope at least.
-        if (in_array($this->scope, $this->token->scopes))
-            return true;
-
-        // Log the deny
-        Log::debug('Denied call to ' . $this->endpoint . ' as scope ' . $this->scope . ' was missing.');
-
-        return false;
-    }
-
-    /**
-     * Assign this job a tag so that Horizon can categorize and allow
-     * for specific tags to be monitored.
-     *
-     * If a job specifies the tags property, that is added to the
-     * character_id tag that automatically gets appended.
+     * Get the current characters roles.
      *
      * @return array
      * @throws \Exception
      */
-    public function tags(): array
+    public function getCharacterRoles(): array
     {
 
-        if (property_exists($this, 'tags')) {
-            if (is_null($this->token))
-                return array_merge($this->tags, ['public']);
-
-            return array_merge($this->tags, ['character_id:' . $this->getCharacterId()]);
-        }
-
-        if (is_null($this->token))
-            return ['unknown_tag', 'public'];
-
-        return ['unknown_tag', 'character_id:' . $this->getCharacterId()];
+        return CharacterRole::where('character_id', $this->getCharacterId())
+            // https://eve-seat.slack.com/archives/C0H3VGH4H/p1515081536000720
+            // > @ccp_snowden: most things will require `roles`, most things are
+            // > not contextually aware enough to make hq/base decisions
+            ->where('scope', 'roles')
+            ->pluck('role')->all();
     }
 
     /**
@@ -248,53 +186,6 @@ abstract class EsiBase implements ShouldQueue
             throw new Exception('No token specified');
 
         return $this->token->character_id;
-    }
-
-    /**
-     * Determine if the current corporation ID is in NPC corporation range.
-     *
-     * @return bool
-     * @throws Exception
-     */
-    private function isNPCCorporation(): bool
-    {
-
-        // ID range references:
-        //  https://gist.github.com/a-tal/5ff5199fdbeb745b77cb633b7f4400bb
-        return 1000000 <= $this->getCorporationId() && $this->getCorporationId() <= 2000000;
-    }
-
-    /**
-     * Get the corporation a refresh_token is associated with.
-     *
-     * This is based on the character's token we have corporation
-     * membership.
-     *
-     * @return int
-     * @throws \Exception
-     */
-    public function getCorporationId(): int
-    {
-
-        return CharacterInfo::where('character_id', $this->getCharacterId())
-            ->first()->corporation_id;
-    }
-
-    /**
-     * Get the current characters roles.
-     *
-     * @return array
-     * @throws \Exception
-     */
-    public function getCharacterRoles(): array
-    {
-
-        return CharacterRole::where('character_id', $this->getCharacterId())
-            // https://eve-seat.slack.com/archives/C0H3VGH4H/p1515081536000720
-            // > @ccp_snowden: most things will require `roles`, most things are
-            // > not contextually aware enough to make hq/base decisions
-            ->where('scope', 'roles')
-            ->pluck('role')->all();
     }
 
     /**
@@ -372,8 +263,35 @@ abstract class EsiBase implements ShouldQueue
         if (trim($this->endpoint) === '')
             throw new Exception('Empty endpoint used');
 
-        if (trim($this->version) === '')
+        // Enfore a version specification unless this is a 'meta' call.
+        if (trim($this->version) === '' && ! (in_array('meta', $this->tags())))
             throw new Exception('Version is empty');
+    }
+
+    /**
+     * Assign this job a tag so that Horizon can categorize and allow
+     * for specific tags to be monitored.
+     *
+     * If a job specifies the tags property, that is added to the
+     * character_id tag that automatically gets appended.
+     *
+     * @return array
+     * @throws \Exception
+     */
+    public function tags(): array
+    {
+
+        if (property_exists($this, 'tags')) {
+            if (is_null($this->token))
+                return array_merge($this->tags, ['public']);
+
+            return array_merge($this->tags, ['character_id:' . $this->getCharacterId()]);
+        }
+
+        if (is_null($this->token))
+            return ['unknown_tag', 'public'];
+
+        return ['unknown_tag', 'character_id:' . $this->getCharacterId()];
     }
 
     /**
@@ -498,12 +416,19 @@ abstract class EsiBase implements ShouldQueue
      * does the work of checking if analytics is disabled
      * or not, so we don't have to care about that here.
      *
+     * On top of that, we also increment the error rate
+     * limiter. This is checked as part of the preflight
+     * checks when API calls are made.
+     *
      * @param \Exception $exception
      *
      * @throws \Exception
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function failed(Exception $exception)
     {
+
+        $this->incrementEsiRateLimit();
 
         // Analytics. Report only the Exception class and message.
         dispatch((new Analytics((new AnalyticsContainer)
@@ -521,4 +446,20 @@ abstract class EsiBase implements ShouldQueue
      * @return void
      */
     abstract public function handle();
+
+    /**
+     * Get the corporation a refresh_token is associated with.
+     *
+     * This is based on the character's token we have corporation
+     * membership.
+     *
+     * @return int
+     * @throws \Exception
+     */
+    public function getCorporationId(): int
+    {
+
+        return CharacterInfo::where('character_id', $this->getCharacterId())
+            ->first()->corporation_id;
+    }
 }

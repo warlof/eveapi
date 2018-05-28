@@ -58,6 +58,8 @@ class Alliances extends EsiBase
     public function handle()
     {
 
+        if (! $this->preflighted()) return;
+
         $alliances = $this->retrieve();
 
         if ($alliances->isCachedLoad()) return;
@@ -87,7 +89,7 @@ class Alliances extends EsiBase
         Alliance::all()->each(function ($alliance) {
             $job = new Info();
             $job->setAlliance($alliance);
-            dispatch($alliance);
+            dispatch($job);
         });
     }
 }
