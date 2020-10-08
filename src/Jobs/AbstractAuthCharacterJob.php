@@ -23,6 +23,7 @@
 namespace Seat\Eveapi\Jobs;
 
 use Seat\Eveapi\Jobs\Middleware\CheckTokenScope;
+use Seat\Eveapi\Jobs\Middleware\ThrottleSameTokenJobs;
 use Seat\Eveapi\Models\RefreshToken;
 
 /**
@@ -56,6 +57,7 @@ abstract class AbstractAuthCharacterJob extends AbstractCharacterJob
     {
         return array_merge(parent::middleware(), [
             new CheckTokenScope,
+            new ThrottleSameTokenJobs,
         ]);
     }
 }

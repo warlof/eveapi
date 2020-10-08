@@ -30,7 +30,7 @@ use Seat\Eveapi\Models\Status\EsiStatus;
  *
  * @package Seat\Eveapi\Jobs\Middleware
  */
-class CheckEsiStatus
+class CheckEsiStatus implements IJobMiddleware
 {
     /**
      * @param \Seat\Eveapi\Jobs\EsiBase $job

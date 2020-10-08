@@ -25,6 +25,7 @@ namespace Seat\Eveapi\Jobs;
 use Seat\Eveapi\Jobs\Middleware\CheckTokenScope;
 use Seat\Eveapi\Jobs\Middleware\IgnoreNpcCorporation;
 use Seat\Eveapi\Jobs\Middleware\RequireCorporationRole;
+use Seat\Eveapi\Jobs\Middleware\ThrottleSameTokenJobs;
 use Seat\Eveapi\Models\RefreshToken;
 
 /**
@@ -68,6 +69,7 @@ abstract class AbstractAuthCorporationJob extends AbstractCorporationJob
             new CheckTokenScope,
             new IgnoreNpcCorporation,
             new RequireCorporationRole,
+            new ThrottleSameTokenJobs,
         ]);
     }
 }

@@ -29,7 +29,7 @@ use Seat\Eveapi\Jobs\EsiBase;
  *
  * @package Seat\Eveapi\Jobs\Middleware
  */
-class CheckEsiRateLimit
+class CheckEsiRateLimit implements IJobMiddleware
 {
     /**
      * @param \Illuminate\Queue\InteractsWithQueue $job

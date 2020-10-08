@@ -30,7 +30,7 @@ use Seat\Eveapi\Models\Character\CharacterRole;
  *
  * @package Seat\Eveapi\Jobs\Middleware
  */
-class RequireCorporationRole
+class RequireCorporationRole implements IJobMiddleware
 {
     /**
      * @param \Seat\Eveapi\Jobs\AbstractAuthCorporationJob $job

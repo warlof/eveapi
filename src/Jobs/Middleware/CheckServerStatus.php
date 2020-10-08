@@ -30,7 +30,7 @@ use Seat\Eveapi\Models\Status\ServerStatus;
  *
  * @package Seat\Eveapi\Jobs\Middleware
  */
-class CheckServerStatus
+class CheckServerStatus implements IJobMiddleware
 {
     public function handle($job, $next)
     {

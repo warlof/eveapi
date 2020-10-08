@@ -29,7 +29,7 @@ use Seat\Eveapi\Jobs\EsiBase;
  *
  * @package Seat\Eveapi\Jobs\Middleware
  */
-class CheckTokenScope
+class CheckTokenScope implements IJobMiddleware
 {
     /**
      * @param \Seat\Eveapi\Jobs\EsiBase $job
